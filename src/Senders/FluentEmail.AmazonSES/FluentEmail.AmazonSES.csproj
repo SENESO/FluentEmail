@@ -1,0 +1,21 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <Description>Send emails via Amazon Simple Email Service (SES) using the SESv2 API</Description>
+    <AssemblyTitle>Fluent Email - Amazon SES</AssemblyTitle>
+    <Authors>Eslam Ashraf;Github Contributors</Authors>
+    <PackageTags>$(PackageTags);amazonses;aws;ses</PackageTags>
+    <TargetFrameworks>netstandard2.0;net8.0</TargetFrameworks>
+    <RootNamespace>FluentEmail.AmazonSES</RootNamespace>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\FluentEmail.Core\FluentEmail.Core.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="AWSSDK.SimpleEmailV2" Version="4.0.106.1" />
+    <PackageReference Include="MimeKit" Version="4.18.1" />
+  </ItemGroup>
+
+</Project>
