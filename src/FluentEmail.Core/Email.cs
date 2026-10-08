@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using System.Globalization;
 using System.IO;
@@ -19,6 +20,10 @@ namespace FluentEmail.Core
 
         public static ITemplateRenderer DefaultRenderer = new ReplaceRenderer();
         public static ISender DefaultSender = new SaveToDiskSender("/");
+
+        // File streams opened by AttachFromFilename. FluentEmail owns these,
+        // so they are released once the email has been sent.
+        private readonly List<Stream> _ownedAttachmentStreams = new List<Stream>();
 
         /// <summary>
         /// Creates a new email instance with default settings.
@@ -292,6 +297,14 @@ namespace FluentEmail.Core
             return this;
         }
 
+        private ITemplateRenderer GetRenderer()
+        {
+            if (Renderer == null)
+                throw new InvalidOperationException("No template renderer is configured. Set one with UsingTemplateEngine() or by assigning Email.DefaultRenderer.");
+
+            return Renderer;
+        }
+
         /// <summary>
         /// Adds template to email from embedded resource
         /// </summary>
@@ -304,7 +317,7 @@ namespace FluentEmail.Core
         public IFluentEmail UsingTemplateFromEmbedded<T>(string path, T model, Assembly assembly, bool isHtml = true)
         {
             var template = EmbeddedResourceHelper.GetResourceAsString(assembly, path);
-            var result = Renderer.Parse(template, model, isHtml);
+            var result = GetRenderer().Parse(template, model, isHtml);
             Data.IsHtml = isHtml;
             Data.Body = result;
 
@@ -322,7 +335,7 @@ namespace FluentEmail.Core
         public IFluentEmail PlaintextAlternativeUsingTemplateFromEmbedded<T>(string path, T model, Assembly assembly)
         {
             var template = EmbeddedResourceHelper.GetResourceAsString(assembly, path);
-            var result = Renderer.Parse(template, model, false);
+            var result = GetRenderer().Parse(template, model, false);
             Data.PlaintextAlternativeBody = result;
 
             return this;
@@ -345,7 +358,7 @@ namespace FluentEmail.Core
                 template = reader.ReadToEnd();
             }
 
-            var result = Renderer.Parse(template, model, isHtml);
+            var result = GetRenderer().Parse(template, model, isHtml);
             Data.IsHtml = isHtml;
             Data.Body = result;
 
@@ -367,7 +380,7 @@ namespace FluentEmail.Core
                 template = reader.ReadToEnd();
             }
 
-            var result = Renderer.Parse(template, model, false);
+            var result = GetRenderer().Parse(template, model, false);
             Data.PlaintextAlternativeBody = result;
 
             return this;
@@ -409,7 +422,7 @@ namespace FluentEmail.Core
         /// <returns>Instance of the Email class</returns>
         public IFluentEmail UsingTemplate<T>(string template, T model, bool isHtml = true)
         {
-            var result = Renderer.Parse(template, model, isHtml);
+            var result = GetRenderer().Parse(template, model, isHtml);
             Data.IsHtml = isHtml;
             Data.Body = result;
 
@@ -424,7 +437,7 @@ namespace FluentEmail.Core
         /// <returns>Instance of the Email class</returns>
         public IFluentEmail PlaintextAlternativeUsingTemplate<T>(string template, T model)
         {
-            var result = Renderer.Parse(template, model, false);
+            var result = GetRenderer().Parse(template, model, false);
             Data.PlaintextAlternativeBody = result;
 
             return this;
@@ -462,6 +475,7 @@ namespace FluentEmail.Core
         public IFluentEmail AttachFromFilename(string filename,  string contentType = null, string attachmentName = null)
         {
             var stream = File.OpenRead(filename);
+            _ownedAttachmentStreams.Add(stream);
             Attach(new Attachment
             {
                 Data = stream,
@@ -497,12 +511,35 @@ namespace FluentEmail.Core
         /// <returns>Instance of the Email class</returns>
         public virtual SendResponse Send(CancellationToken? token = null)
         {
-            return Sender.Send(this, token);
+            try
+            {
+                return Sender.Send(this, token);
+            }
+            finally
+            {
+                DisposeOwnedAttachmentStreams();
+            }
         }
 
-        public virtual Task<SendResponse> SendAsync(CancellationToken? token = null)
+        public virtual async Task<SendResponse> SendAsync(CancellationToken? token = null)
         {
-            return Sender.SendAsync(this, token);
+            try
+            {
+                return await Sender.SendAsync(this, token).ConfigureAwait(false);
+            }
+            finally
+            {
+                DisposeOwnedAttachmentStreams();
+            }
+        }
+
+        private void DisposeOwnedAttachmentStreams()
+        {
+            foreach (var stream in _ownedAttachmentStreams)
+            {
+                stream.Dispose();
+            }
+            _ownedAttachmentStreams.Clear();
         }
 
         private static string GetCultureFileName(string fileName, CultureInfo culture)
