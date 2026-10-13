@@ -2,6 +2,24 @@
 
 Local modernization of lukencode/FluentEmail (MIT). No behavior rewrites; minimal reviewable changes only.
 
+## 2026-10-14 — dependency sweep, Graph sender modernization, bug fixes
+- **Graph sender rewritten on Microsoft.Graph 6.x + Azure.Identity.** The sender previously depended on `Microsoft.Graph.Auth` `1.0.0-preview.5`, a package that never shipped a stable release and has been discontinued by Microsoft (auth is now owned by Azure.Identity). Public API is unchanged: `new GraphSender(appId, tenantId, secret, saveSentItems)` and `AddGraphSender(...)` work exactly as before; the client-credentials flow now goes through `ClientSecretCredential`.
+- **Bug fix — `AttachFromFilename` no longer leaks the full file path into the attachment's MIME filename.** When `attachmentName` is omitted it now defaults to `Path.GetFileName(filename)` instead of the raw path.
+- **Bug fix — `To(string)` trims whitespace** on `;`-separated and single addresses, matching the `To(string, string)` overload.
+- **Dependency updates (latest stable, no breaking majors):**
+  - `Fluid.Core` `2.0.13` → `2.40.0` (Liquid renderer)
+  - `RazorLight` `2.0.0-rc.3` → `2.3.1` (Razor renderer — first stable 2.x)
+  - `AWSSDK.SimpleEmailV2` `4.0.106.1` → `4.0.106.3`
+  - `Newtonsoft.Json` `13.0.3` → `13.0.4`
+  - `Microsoft.Extensions.DependencyInjection.Abstractions` `8.0.0` → `8.0.2`
+  - `Microsoft.Extensions.Options` `8.0.0` → `8.0.2`
+  - `Microsoft.Extensions.FileProviders.Embedded` `5.0.2` → `8.0.32` / `Physical` `5.0.0` → `8.0.0` (Liquid tests)
+  - `Microsoft.NET.Test.Sdk` `17.8.0` → `17.14.1`, `NUnit3TestAdapter` `4.5.0` → `4.6.0` (NUnit stays on 3.x — 4.x is a breaking major)
+  - `FluentAssertions` `6.1.0` → `6.12.2` (stays on 6.x — FA 7+/8+ moved to a commercial license, unsuitable for this MIT project)
+  - `MailKit` `4.18.1`, `MimeKit` `4.18.1`, `Sendgrid` `9.29.3`, `Microsoft.CSharp` `4.7.0` — already latest
+- **Package metadata:** `RepositoryUrl`/`PackageProjectUrl`/`PackageIconUrl` now point at `SENESO/FluentEmail` (this revival repo) instead of the archived upstream.
+- Build: 0 warnings, 0 errors. Full test suite green.
+
 ## Target frameworks (.NET 8 support — issue #380)
 - `src/FluentEmail.Core/FluentEmail.Core.csproj` — `netstandard2.0` → `netstandard2.0;net8.0`
 - `src/Renderers/FluentEmail.Liquid/FluentEmail.Liquid.csproj` — `netstandard2.0` → `netstandard2.0;net8.0`

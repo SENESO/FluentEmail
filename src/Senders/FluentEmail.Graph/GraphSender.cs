@@ -1,9 +1,10 @@
-﻿using FluentEmail.Core;
+using Azure.Identity;
+using FluentEmail.Core;
 using FluentEmail.Core.Interfaces;
 using FluentEmail.Core.Models;
 using Microsoft.Graph;
-using Microsoft.Graph.Auth;
-using Microsoft.Identity.Client;
+using Microsoft.Graph.Models;
+using Microsoft.Graph.Users.Item.SendMail;
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -12,16 +13,21 @@ using System.Threading.Tasks;
 
 namespace FluentEmail.Graph
 {
+    /// <summary>
+    /// Sends emails through the Microsoft Graph API (v1.0) using the
+    /// client-credentials flow. Authentication uses Azure.Identity's
+    /// <see cref="ClientSecretCredential"/> — the Microsoft.Graph.Auth
+    /// package this sender previously relied on never shipped a stable
+    /// release and has been discontinued by Microsoft.
+    /// </summary>
     public class GraphSender : ISender
     {
         private readonly string _appId;
         private readonly string _tenantId;
         private readonly string _graphSecret;
-        private bool _saveSent;
+        private readonly bool _saveSent;
 
-        private ClientCredentialProvider _authProvider;
-        private GraphServiceClient _graphClient;
-        private IConfidentialClientApplication _clientApp;
+        private readonly GraphServiceClient _graphClient;
 
         public GraphSender(
             string GraphEmailAppId,
@@ -34,15 +40,10 @@ namespace FluentEmail.Graph
             _graphSecret = GraphEmailSecret;
             _saveSent = SaveSentItems;
 
-            _clientApp = ConfidentialClientApplicationBuilder
-                .Create(_appId)
-                .WithTenantId(_tenantId)
-                .WithClientSecret(_graphSecret)
-                .Build();
+            var credential = new ClientSecretCredential(_tenantId, _appId, _graphSecret);
 
-            _authProvider = new ClientCredentialProvider(_clientApp);
-
-            _graphClient = new GraphServiceClient(_authProvider);
+            // Defaults to the https://graph.microsoft.com/.default scope.
+            _graphClient = new GraphServiceClient(credential);
         }
 
         public SendResponse Send(IFluentEmail email, CancellationToken? token = null)
@@ -77,7 +78,7 @@ namespace FluentEmail.Graph
                 email.Data.ToAddresses.ForEach(r => toRecipients.Add(new Recipient
                 {
                     EmailAddress = new EmailAddress
-                    { 
+                    {
                         Address = r.EmailAddress.ToString(),
                         Name = r.Name
                     }
@@ -102,7 +103,7 @@ namespace FluentEmail.Graph
                 message.BccRecipients = bccRecipients;
             }
 
-            if (email.Data.CcAddresses != null && email.Data.CcAddresses.Count > 0)
+            if(email.Data.CcAddresses != null && email.Data.CcAddresses.Count > 0)
             {
                 var ccRecipients = new List<Recipient>();
 
@@ -120,7 +121,7 @@ namespace FluentEmail.Graph
 
             if(email.Data.Attachments != null && email.Data.Attachments.Count > 0)
             {
-                message.Attachments = new MessageAttachmentsCollectionPage();
+                var attachments = new List<Microsoft.Graph.Models.Attachment>();
 
                 email.Data.Attachments.ForEach(a =>
                 {
@@ -131,8 +132,10 @@ namespace FluentEmail.Graph
                         ContentBytes = GetAttachmentBytes(a.Data)
                     };
 
-                    message.Attachments.Add(attachment);
+                    attachments.Add(attachment);
                 });
+
+                message.Attachments = attachments;
             }
 
             switch(email.Data.Priority)
@@ -154,9 +157,12 @@ namespace FluentEmail.Graph
             try
             {
                 await _graphClient.Users[email.Data.FromAddress.EmailAddress]
-                    .SendMail(message, _saveSent)
-                    .Request()
-                    .PostAsync();
+                    .SendMail
+                    .PostAsync(new SendMailPostRequestBody
+                    {
+                        Message = message,
+                        SaveToSentItems = _saveSent
+                    }, cancellationToken: token.GetValueOrDefault());
 
                 return new SendResponse
                 {

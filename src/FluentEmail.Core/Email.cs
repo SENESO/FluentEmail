@@ -134,12 +134,12 @@ namespace FluentEmail.Core
             {
                 foreach (string address in emailAddress.Split(';'))
                 {
-                    Data.ToAddresses.Add(new Address(address));
+                    Data.ToAddresses.Add(new Address(address.Trim()));
                 }
             }
             else
             {
-                Data.ToAddresses.Add(new Address(emailAddress));
+                Data.ToAddresses.Add(new Address(emailAddress.Trim()));
             }
 
             return this;
@@ -479,7 +479,9 @@ namespace FluentEmail.Core
             Attach(new Attachment
             {
                 Data = stream,
-                Filename = attachmentName ?? filename,
+                // Use the file name only — never the full local path, which would
+                // leak into the attachment's MIME filename on the wire.
+                Filename = attachmentName ?? Path.GetFileName(filename),
                 ContentType = contentType
             });
 

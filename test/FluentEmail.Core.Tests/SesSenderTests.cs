@@ -76,8 +76,7 @@ namespace FluentEmail.AmazonSES.Tests
             Assert.IsNotNull(request);
             Assert.AreEqual(fromEmail, request.FromEmailAddress);
 
-            request.Content.Raw.Data.Position = 0;
-            var raw = new StreamReader(request.Content.Raw.Data).ReadToEnd();
+            var raw = System.Text.Encoding.UTF8.GetString(sender.CapturedRawBytes);
             Assert.IsTrue(raw.Contains(subject), "Raw MIME should contain the subject.");
             Assert.IsTrue(raw.Contains("Hello via SES"), "Raw MIME should contain the body.");
             Assert.IsTrue(raw.Contains("notes.txt"), "Raw MIME should contain the attachment.");
@@ -113,6 +112,7 @@ namespace FluentEmail.AmazonSES.Tests
         private class CapturingSesSender : SesSender
         {
             public SendEmailRequest CapturedRequest { get; private set; }
+            public byte[] CapturedRawBytes { get; private set; }
             public Exception Throw { get; set; }
 
             public CapturingSesSender() : base(new SesSenderOptions { Region = "us-east-1" }) { }
@@ -121,6 +121,13 @@ namespace FluentEmail.AmazonSES.Tests
             {
                 if (Throw != null) throw Throw;
                 CapturedRequest = request;
+                // The sender owns and disposes the raw stream after this returns,
+                // so snapshot the bytes here while it is still readable.
+                using (var copy = new MemoryStream())
+                {
+                    request.Content.Raw.Data.CopyTo(copy);
+                    CapturedRawBytes = copy.ToArray();
+                }
                 return Task.FromResult(new SendEmailResponse { MessageId = "ses-message-id-123" });
             }
         }

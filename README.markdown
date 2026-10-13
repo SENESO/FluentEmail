@@ -1,9 +1,9 @@
-![alt text](https://github.com/lukencode/FluentEmail/raw/master/assets/fluentemail_logo_64x64.png "FluentEmail")
+![alt text](https://github.com/SENESO/FluentEmail/raw/master/assets/fluentemail_logo_64x64.png "FluentEmail")
 
 # FluentEmail - All in one email sender for .NET and .NET Core
 The easiest way to send email from .NET and .NET Core. Use Razor for email templates and send using SendGrid, MailGun, SMTP and more.
 
-Maintained by Luke Lowrey - follow me  on twitter **[@lukencode](https://twitter.com/lukencode)** for updates. See my blog for a detailed guide [A complete guide to send email in .NET](https://lukelowrey.com/dotnet-email-guide-2021/) 
+Originally created by Luke Lowrey ([@lukencode](https://twitter.com/lukencode)) — this is the **SENESO revival**, maintained at [SENESO/FluentEmail](https://github.com/SENESO/FluentEmail), keeping the library current on modern .NET. See [CHANGELOG-revival.md](CHANGELOG-revival.md) for what has changed since the upstream archive. Luke's detailed guide is still a good read: [A complete guide to send email in .NET](https://lukelowrey.com/dotnet-email-guide-2021/).
 
 
 ## Nuget Packages
@@ -25,6 +25,7 @@ Maintained by Luke Lowrey - follow me  on twitter **[@lukencode](https://twitter
 * [FluentEmail.Mailtrap](src/Senders/FluentEmail.Mailtrap) - Send emails to Mailtrap. Uses [FluentEmail.Smtp](src/Senders/FluentEmail.Smtp) for delivery.
 * [FluentEmail.MailKit](src/Senders/FluentEmail.MailKit) - Send emails using the [MailKit](https://github.com/jstedfast/MailKit) email library.
 * [FluentEmail.AmazonSES](src/Senders/FluentEmail.AmazonSES) - Send emails via [Amazon SES](https://aws.amazon.com/ses/) using the SESv2 API.
+* [FluentEmail.Graph](src/Senders/FluentEmail.Graph) - Send emails via the [Microsoft Graph API](https://learn.microsoft.com/graph/api/user-sendmail) using an Azure AD app (client credentials). Now built on `Microsoft.Graph` v6 + `Azure.Identity` — the old `Microsoft.Graph.Auth` preview package was discontinued by Microsoft.
 
 ## Basic Usage
 ```csharp
@@ -135,6 +136,35 @@ email.Send();
 await email.SendAsync();
 ```
 
+## Sending via Microsoft Graph
+
+```csharp
+// Using the Graph sender package (or set using AddGraphSender in services)
+Email.DefaultSender = new GraphSender(
+    graphEmailAppId: "<azure-ad-app-id>",
+    graphEmailTenantId: "<tenant-id>",
+    graphEmailSecret: "<client-secret>",
+    saveSentItems: false);
+
+var email = Email
+    .From("sender@yourdomain.com")
+    .To("someone@example.com")
+    .Subject("sent via Graph")
+    .Body("<h1>Hello from Microsoft Graph</h1>", isHtml: true);
+
+await email.SendAsync();
+```
+
+With dependency injection:
+
+```csharp
+services
+    .AddFluentEmail("sender@yourdomain.com")
+    .AddGraphSender("<azure-ad-app-id>", "<tenant-id>", "<client-secret>");
+```
+
+The app needs the `Mail.Send` application permission on Microsoft Graph, and the `From` address must be a mailbox the app may send as.
+
 ## Template File from Disk
 
 ```csharp
@@ -146,12 +176,6 @@ var email = Email
 ```
 
 ## Embedded Template File
-
-**Note for .NET Core 2 users:** You'll need to add the following line to the project containing any embedded razor views. See [this issue for more details](https://github.com/aspnet/Mvc/issues/6021).
-
-```xml
-<MvcRazorExcludeRefAssembliesFromPublish>false</MvcRazorExcludeRefAssembliesFromPublish>
-```
 
 ```csharp
 var email = new Email("bob@hotmail.com")

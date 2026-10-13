@@ -21,7 +21,7 @@ namespace FluentEmail.Mailgun.Tests
             Email.DefaultSender = sender;
         }
 
-        [Test]
+        [Test, Ignore("No mailgun credentials - requires a live Mailgun account")]
         public async Task CanSendEmail()
         {
             var email = Email
@@ -35,7 +35,7 @@ namespace FluentEmail.Mailgun.Tests
             Assert.IsTrue(response.Successful);
         }
 
-        [Test]
+        [Test, Ignore("No mailgun credentials - requires a live Mailgun account")]
         public async Task GetMessageIdInResponse()
         {
             var email = Email
@@ -50,7 +50,7 @@ namespace FluentEmail.Mailgun.Tests
             Assert.IsNotEmpty(response.MessageId);
         }
 
-        [Test]
+        [Test, Ignore("No mailgun credentials - requires a live Mailgun account")]
         public async Task CanSendEmailWithTag()
         {
             var email = Email
@@ -65,7 +65,7 @@ namespace FluentEmail.Mailgun.Tests
             Assert.IsTrue(response.Successful);
         }
 
-        [Test]
+        [Test, Ignore("No mailgun credentials - requires a live Mailgun account")]
         public async Task CanSendEmailWithVariables()
         {
             var email = Email
@@ -80,7 +80,7 @@ namespace FluentEmail.Mailgun.Tests
             Assert.IsTrue(response.Successful);
         }
 
-        [Test]
+        [Test, Ignore("No mailgun credentials - requires a live Mailgun account")]
         public async Task CanSendEmailWithAttachments()
         {
             var stream = new MemoryStream();
@@ -108,7 +108,7 @@ namespace FluentEmail.Mailgun.Tests
             Assert.IsTrue(response.Successful);
         }
 
-        [Test]
+        [Test, Ignore("No mailgun credentials - requires a live Mailgun account")]
         public async Task CanSendEmailWithInlineImages()
         {
             using (var stream = File.OpenRead($"{Path.Combine(Directory.GetCurrentDirectory(), "logotest.png")}"))
